@@ -1,5 +1,5 @@
 #include <SPI.h>
-
+#include <SD.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -27,13 +27,33 @@
 int DPINS[] = {PB_0, PB_1, PB_2, PB_3, PB_4, PB_5, PB_6, PB_7};  
 
 #define CS_PIN PA_3 
-#define B_PIN PE_2
-String MedESP32;
+#define B_PIN PF_3
+//String MedESP32;
+String DatoP; 
+int MedESP321;
 #define pinButtonM PF_0 //Bandera para realizar la medición
 #define pinButtonG PF_4 //Bandera para guardar dato
 
+File archivo; 
+
 int ButtonMed;
 int ButtonG;
+
+int melodia = 460;
+int duracion = 550;
+
+int melodia2 = 493;
+int duracion2 = 550;
+
+int buttonState = HIGH; // Estado del botón en la última lectura
+int lastButtonState = HIGH; // Estado del botón en la última lectura
+unsigned long lastDebounceTime = 0; // Tiempo de la última transición del botón
+unsigned long debounceDelay = 50; // Tiempo de rebote (ajústalo según tus necesidades)
+
+int buttonState2 = HIGH; // Estado del botón en la última lectura
+int lastButtonState2 = HIGH; // Estado del botón en la última lectura
+unsigned long lastDebounceTime2 = 0; // Tiempo de la última transición del botón
+unsigned long debounceDelay2 = 50; // Tiempo de rebote (ajústalo según tus necesidades)
 //***************************************************************************************************************************************
 // Functions Prototypes
 //***************************************************************************************************************************************
@@ -57,6 +77,7 @@ extern uint8_t temp[];
 // Inicialización
 //***************************************************************************************************************************************
 void setup() {
+  SPI.setModule(0);
   pinMode(pinButtonM, INPUT_PULLUP);
   pinMode(pinButtonG, INPUT_PULLUP);
   pinMode(B_PIN, OUTPUT);
@@ -64,50 +85,105 @@ void setup() {
   Serial.begin(115200);
   Serial2.begin(115200);
 
-
+  Serial.println("Bienvenido");
+  Serial.println("Initializing SD card...");
+  if (!SD.begin(CS_PIN)) {
+    Serial.println("initialization failed!");
+    return;
+    }
+  Serial.println("initialization done");
+  Serial.print('\n');
+  
   SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_OSC_MAIN|SYSCTL_XTAL_16MHZ);
-  Serial.begin(9600);
   GPIOPadConfigSet(GPIO_PORTB_BASE, 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, GPIO_STRENGTH_8MA, GPIO_PIN_TYPE_STD_WPU);
-  Serial.println("Inicio");
+ 
   LCD_Init();
   LCD_Clear(0x00);
   
-  FillRect(0, 0, 319, 206, 0x421b);
-  String text1 = "Su temperatura es: ";
-  LCD_Print(text1, 20, 100, 2, 0xffff, 0x421b);
+  FillRect(0, 0, 320, 240, 0x421b);
+  //String text1 = "Su temperatura es: ";
+  //LCD_Print(text1, 20, 100, 2, 0xffff, 0x421b);
 
   
-//LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
+  //LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
     
   //LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
- // LCD_Bitmap(0, 0, 569, 190, temp);
+  // LCD_Bitmap(0, 0, 569, 190, temp);
   
 }
 //***************************************************************************************************************************************
 // Loop Infinito
 //***************************************************************************************************************************************
 void loop() {
- ButtonMed = digitalRead(pinButtonM);
+ButtonMed = digitalRead(pinButtonM);
 ButtonG = digitalRead(pinButtonG);
 
-if (ButtonMed == 0){
-  Serial.println("Solicitando medición");
-  Serial2.print("on");
-  if (Serial2.available()) {
-    MedESP32 = Serial2.readString();
-    Serial.println("Medición recibida:");
-   // Serial.println(MedESP32);
-    digitalWrite(B_PIN, HIGH);
-    delay(500);
-    digitalWrite(B_PIN, LOW);
-    String text2 = "Med";
-    LCD_Print(text2, 20, 150, 2, 0xffff, 0x421b);
-    Serial2.print("Medición recibida");
+
+  if (ButtonMed != lastButtonState) {
+  lastDebounceTime = millis();}
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (ButtonMed != buttonState) {
+      buttonState = ButtonMed;
+      //Acción del botón
+//**************************************************************************************************************************************************
+      if (buttonState == LOW) {
+       Serial.println("Solicitando medición");
+       Serial2.print("on");
+       if (Serial2.available()) {
+     //MedESP32 = Serial2.readString();
+       MedESP321 = Serial2.parseInt();
+       Serial.println("Medición recibida:");
+       Serial.println(MedESP321);
+       Serial.print('\n');
+       tone(B_PIN, melodia, duracion);
+       delay(200);
+       noTone(B_PIN);
+       String DatoP = "temperatura: ";
+       
+       DatoP += String(MedESP321);
+       LCD_Print(DatoP, 20, 100, 2, 0xffff, 0x421b);
+       delay(1000);
+       }
+       else {
+       Serial.println("Dato no recivido");}
+      }
+
+//**************************************************************************************************************************************************
      }
-   else {
-   Serial.println("Dato no recivido");
- }
-}
+    }
+      
+  lastButtonState = ButtonMed;
+
+ if (ButtonG != lastButtonState2) {
+    lastDebounceTime2 = millis();}
+
+ if ((millis() - lastDebounceTime2) > debounceDelay2) {
+   if (ButtonG != buttonState2) {
+      buttonState2 = ButtonG;
+      //Acción del botón 
+//**************************************************************************************************************************************************
+      if (ButtonG == 0){
+      archivo = SD.open("archivo.txt", FILE_WRITE);
+      if (archivo) {
+        archivo.print(MedESP321);
+        Serial.println("Medición guardada:");
+        Serial.println(MedESP321);
+        Serial.print('\n');
+        tone(B_PIN, melodia2, duracion2);
+        delay(200);
+        noTone(B_PIN);
+        archivo.close();
+      } 
+      else {
+        Serial.print("error al escribir en la tarjeta");}
+        } 
+//***********************************************************************************************************************************************
+       } 
+      }
+
+  lastButtonState2 = ButtonG;
+
 }
 
 //***************************************************************************************************************************************
@@ -364,7 +440,7 @@ void LCD_Print(String text, int x, int y, int fontSize, int color, int backgroun
   
   char charInput ;
   int cLength = text.length();
-  Serial.println(cLength,DEC);
+  //Serial.println(cLength,DEC);
   int charDec ;
   int c ;
   int charHex ;
@@ -372,7 +448,7 @@ void LCD_Print(String text, int x, int y, int fontSize, int color, int backgroun
   text.toCharArray(char_array, cLength+1) ;
   for (int i = 0; i < cLength ; i++) {
     charInput = char_array[i];
-    Serial.println(char_array[i]);
+    //Serial.println(char_array[i]);
     charDec = int(charInput);
     digitalWrite(LCD_CS, LOW);
     SetWindows(x + (i * fontXSize), y, x + (i * fontXSize) + fontXSize - 1, y + fontYSize );

@@ -14,6 +14,9 @@ void MedirSensor (void){
 filtroEMA();
 adcFiltradoEMA = analogRead(SensorESP)/150.0*16.0;
 DatoSensor = adcFiltradoEMA;
+Serial2.print(DatoSensor); 
+Serial.println("Medición enviada: ");
+Serial.println(DatoSensor); 
 }
 
 void setup() {
@@ -32,12 +35,14 @@ if (Serial2.available()) {
 		if (BanderaTiva == "on") {
 		Serial.println("Medición requerida");
         MedirSensor();
-        Serial2.print(DatoSensor);
-		Serial.println("Medición enviada: ");
-		Serial.println(DatoSensor);
+       // Serial2.print(DatoSensor);
+		//Serial.println("Medición enviada: ");
+		//Serial.println(DatoSensor);
 		delay(200);
 		}
 	}
+
+
 }
 
 //funciones ADC
